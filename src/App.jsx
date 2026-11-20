@@ -1,68 +1,70 @@
 import TaskList from './components/TaskList.jsx';
 import './App.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
-const TASKS = [
-  {
-    id: 1,
-    title: 'Mow the lawn',
-    isComplete: false,
-  },
-  {
-    id: 2,
-    title: 'Cook Pasta',
-    isComplete: true,
-  },
-  {
-    id: 3,
-    title: 'Organize my room',
-    isComplete: false,
-  },
-];
 
 const App = () => {
-  const [tasks, setTasks] = useState(TASKS);
-  const toggleTask = (id) => {
-    setTasks((currentTasks) => {
-      const updatedTasks = [];
+  const [tasks, setTasks] = useState([]);
+  const API_URL = import.meta.env.VITE_API_URL;
 
-      for (const task of currentTasks) {
-        if (task.id === id) {
-          const updatedTask = {
-            ...task,
-            isComplete: !task.isComplete,
-          };
+  async function getTasks() {
+    try{
+    const response = await axios.get(`${API_URL}/tasks`);
+    setTasks(
+  response.data.map((task) => ({
+    ...task,
+    isComplete: task.is_complete,
+  }))
+);
+    }
+    catch(error){ 
+    console.error("Error fechting tasks ", error);
+    }
+  }
+  useEffect(() => {getTasks();}, []);
 
-          updatedTasks.push(updatedTask);
-        } else {
-          updatedTasks.push(task);
-        }
-      }
+  async function toggleCompleteTask(taskId) {
+  const task = tasks.find((task) => task.id === taskId);
 
-      return updatedTasks;
-    });
-  };
+  if (!task) {
+    return;
+  }
 
-  const deleteTask = (id) => {
-    setTasks((currentTasks) => {
-      const remainingTasks = [];
+  let endpoint;
 
-      for (const task of currentTasks) {
-        if (task.id !== id) {
-          remainingTasks.push(task);
-        }
-      }
+  if (!task.isComplete) {
+    endpoint =`${API_URL}/tasks/${taskId}/mark_complete`;
+  } else {
+    endpoint = `${API_URL}/tasks/${taskId}/mark_incomplete`;
+  }
 
-      return remainingTasks;
-    });
-  };
+  try {
+    await axios.patch(endpoint);
+    await getTasks();
+  } catch (error) {
+    console.error("Error updating task:", error);
+  }
+}
+
+async function deleteTask(taskId) {
+  try {
+    await axios.delete(`${API_URL}/tasks/${taskId}`);
+    await getTasks();
+  } catch (error) {
+    console.error("Error deleting task:", error);
+  }
+}
+
+
+
   return (
     <div className="App">
       <header className="App-header">
         <h1>Ada&apos;s Task List</h1>
       </header>
       <main>
-        <div>{<TaskList tasks={tasks} onClickCallBack={toggleTask} onDeleteCallBack={deleteTask} />}</div>
+        <div>{<TaskList tasks={tasks} onClickCallBack={toggleCompleteTask} onDeleteCallBack={deleteTask} />}</div>
       </main>
     </div>
   );
